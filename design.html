@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Contribution Heatmap</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .contribution-summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #8b949e;
+            margin-bottom: 16px;
+        }
+
+        .contribution-summary strong {
+            color: #c9d1d9;
+        }
+
+        .graph-container {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+        }
+
+        .graph-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .year-selector {
+            display: flex;
+            gap: 8px;
+        }
+
+        .year-btn {
+            background: none;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .year-btn:hover {
+            background-color: #21262d;
+        }
+
+        .year-btn.active {
+            background-color: #238636;
+            border-color: #238636;
+        }
+
+        .graph {
+            display: flex;
+            gap: 3px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .month-labels {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 4px;
+            padding-left: 28px;
+        }
+
+        .month-label {
+            font-size: 10px;
+            color: #8b949e;
+            text-align: left;
+            min-width: 13px;
+        }
+
+        .graph-columns {
+            display: flex;
+            gap: 3px;
+        }
+
+        .day-labels {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            justify-content: space-around;
+            margin-right: 8px;
+        }
+
+        .day-label {
+            font-size: 10px;
+            color: #8b949e;
+            height: 11px;
+            line-height: 11px;
+        }
+
+        .graph-column {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .graph-day {
+            width: 11px;
+            height: 11px;
+            border-radius: 2px;
+            background-color: #161b22;
+            border: 1px solid #1b1f23;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+        }
+
+        .graph-day:hover {
+            border-color: #8b949e;
+            transform: scale(1.1);
+        }
+
+        /* Contribution levels - GitHub color scheme */
+        .graph-day[data-level="0"] {
+            background-color: #161b22;
+        }
+
+        .graph-day[data-level="1"] {
+            background-color: #4b2712;
+            border-color: #4b2712;
+        }
+
+        .graph-day[data-level="2"] {
+            background-color: #a24d09;
+            border-color: #a24d09;
+        }
+
+        .graph-day[data-level="3"] {
+            background-color: #fa8200;
+            border-color: #fa8200;
+        }
+
+        .graph-day[data-level="4"] {
+            background-color: #ffd580;
+            border-color: #ffd580;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .tooltip.show {
+            display: block;
+        }
+
+        .tooltip-contributions {
+            font-weight: 600;
+        }
+
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 16px;
+            font-size: 11px;
+            color: #8b949e;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-squares {
+            display: flex;
+            gap: 2px;
+            margin: 0 4px;
+        }
+
+        .legend-square {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Contribution Activity</h1>
+            <div class="contribution-summary">
+                <strong id="total-contributions">1,234</strong> contributions in the last year
+            </div>
+        </div>
+
+        <div class="graph-container">
+            <div class="graph-header">
+                <div></div>
+                <div class="year-selector">
+                    <button class="year-btn">2023</button>
+                    <button class="year-btn active">2024</button>
+                    <button class="year-btn">2025</button>
+                </div>
+            </div>
+
+            <div class="month-labels" id="monthLabels"></div>
+
+            <div class="graph">
+                <div class="day-labels">
+                    <div class="day-label"></div>
+                    <div class="day-label">Mon</div>
+                    <div class="day-label"></div>
+                    <div class="day-label">Wed</div>
+                    <div class="day-label"></div>
+                    <div class="day-label">Fri</div>
+                    <div class="day-label"></div>
+                </div>
+                <div class="graph-columns" id="graphColumns"></div>
+            </div>
+
+            <div class="legend">
+                <span>Less</span>
+                <div class="legend-squares">
+                    <div class="legend-square" style="background-color: #161b22; border: 1px solid #1b1f23;"></div>
+                    <div class="legend-square" style="background-color: #4b2712;"></div>
+                    <div class="legend-square" style="background-color: #a24d09;"></div>
+                    <div class="legend-square" style="background-color: #fa8200;"></div>
+                    <div class="legend-square" style="background-color: #ffd580;"></div>
+                </div>
+                <span>More</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip">
+        <div class="tooltip-contributions"></div>
+        <div class="tooltip-date"></div>
+    </div>
+
+    <script>
+        const tooltip = document.getElementById('tooltip');
+        const graphColumns = document.getElementById('graphColumns');
+        const monthLabels = document.getElementById('monthLabels');
+
+        // Generate data for the last 53 weeks (371 days)
+        function generateContributionData() {
+            const data = [];
+            const today = new Date();
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - 371);
+
+            for (let i = 0; i < 371; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                // Generate random contribution count with weighted probability
+                let count = 0;
+                const random = Math.random();
+                
+                if (random > 0.3) {
+                    count = Math.floor(Math.random() * 15);
+                }
+                
+                data.push({
+                    date: date,
+                    count: count,
+                    level: getLevel(count)
+                });
+            }
+            
+            return data;
+        }
+
+        function getLevel(count) {
+            if (count === 0) return 0;
+            if (count <= 3) return 1;
+            if (count <= 6) return 2;
+            if (count <= 9) return 3;
+            return 4;
+        }
+
+        function formatDate(date) {
+            const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        function renderGraph() {
+            const data = generateContributionData();
+            
+            // Calculate total contributions
+            const totalContributions = data.reduce((sum, day) => sum + day.count, 0);
+            document.getElementById('total-contributions').textContent = totalContributions.toLocaleString();
+
+            // Group by weeks
+            const weeks = [];
+            let currentWeek = [];
+            
+            // Start from Sunday
+            const firstDay = data[0].date.getDay();
+            
+            // Add empty cells for the first week
+            for (let i = 0; i < firstDay; i++) {
+                currentWeek.push(null);
+            }
+
+            data.forEach(day => {
+                currentWeek.push(day);
+                if (currentWeek.length === 7) {
+                    weeks.push(currentWeek);
+                    currentWeek = [];
+                }
+            });
+
+            // Add remaining days
+            if (currentWeek.length > 0) {
+                while (currentWeek.length < 7) {
+                    currentWeek.push(null);
+                }
+                weeks.push(currentWeek);
+            }
+
+            // Render columns
+            weeks.forEach((week, weekIndex) => {
+                const column = document.createElement('div');
+                column.className = 'graph-column';
+
+                week.forEach(day => {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'graph-day';
+                    
+                    if (day) {
+                        dayElement.dataset.level = day.level;
+                        dayElement.dataset.date = day.date.toISOString();
+                        dayElement.dataset.count = day.count;
+                        
+                        dayElement.addEventListener('mouseenter', (e) => {
+                            const rect = e.target.getBoundingClientRect();
+                            const contributionText = day.count === 0 
+                                ? 'No contributions' 
+                                : `${day.count} contribution${day.count !== 1 ? 's' : ''}`;
+                            
+                            tooltip.querySelector('.tooltip-contributions').textContent = contributionText;
+                            tooltip.querySelector('.tooltip-date').textContent = formatDate(day.date);
+                            tooltip.classList.add('show');
+                            
+                            tooltip.style.left = `${rect.left + rect.width / 2}px`;
+                            tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                            tooltip.style.transform = 'translateX(-50%)';
+                        });
+
+                        dayElement.addEventListener('mouseleave', () => {
+                            tooltip.classList.remove('show');
+                        });
+                    }
+
+                    column.appendChild(dayElement);
+                });
+
+                graphColumns.appendChild(column);
+            });
+
+            // Render month labels
+            let currentMonth = -1;
+            let monthPositions = [];
+            
+            weeks.forEach((week, weekIndex) => {
+                const firstDay = week.find(d => d !== null);
+                if (firstDay) {
+                    const month = firstDay.date.getMonth();
+                    if (month !== currentMonth) {
+                        monthPositions.push({
+                            month: month,
+                            position: weekIndex
+                        });
+                        currentMonth = month;
+                    }
+                }
+            });
+
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            weeks.forEach((week, weekIndex) => {
+                const label = document.createElement('div');
+                label.className = 'month-label';
+                
+                const monthPos = monthPositions.find(m => m.position === weekIndex);
+                if (monthPos) {
+                    label.textContent = monthNames[monthPos.month];
+                }
+                
+                monthLabels.appendChild(label);
+            });
+        }
+
+        renderGraph();
+
+        // Year button functionality
+        document.querySelectorAll('.year-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Regenerate with new data
+                graphColumns.innerHTML = '';
+                monthLabels.innerHTML = '';
+                renderGraph();
+            });
+        });
+    </script>
+</body>
+</html>
