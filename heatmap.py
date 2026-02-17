@@ -267,6 +267,9 @@ class HeatmapWindow:
         return self.canvas.create_polygon(points, smooth=True, **kwargs)
 
     def draw_grid(self):
+        # Clear any existing drawings so redraws replace the old grid
+        self.canvas.delete("all")
+
         # Grid settings (matching design.html)
         square_size = 11
         gap = 3
@@ -381,6 +384,10 @@ class HeatmapWindow:
                         lambda e, d=date, c=count: self.on_hover(d, c))
                     self.canvas.tag_bind(square, '<Leave>',
                         lambda e: self.on_leave())
+
+        # Schedule next refresh in 6 hours (6 * 60 * 60 * 1000 ms)
+        six_hours_ms = 6 * 60 * 60 * 1000
+        self.root.after(six_hours_ms, self.draw_grid)
 
     def on_hover(self, date, count):
         """Display date and contribution count when hovering over a square"""
